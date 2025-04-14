@@ -1,0 +1,121 @@
+// ==UserScript==
+// @name         Measure it all
+// @namespace    http://tampermonkey.net/
+// @version      2025-04-06
+// @description  PLT/TTI Measure
+// @author       Me
+// @match        http://*/*
+// @icon         data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==
+// @grant        none
+// ==/UserScript==
+
+(function () {
+  'use strict';
+    const TESTS = 250; /hur många test
+    const coldLoad = false ; / delete cache
+    const resultat = JSON.parse(localStorage.getItem("ttiTester") || "[]"); /init
+    let fcpTime = null;
+    let pltTime = null;
+    let lastLongTaskEnd = null;
+
+    const observer = new PerformanceObserver((list) => {
+        // hämta alla navigations
+        const entries = list.getEntriesByType("navigation");
+            const navEntry = entries[0];
+            //räkna ut första entry, loadeventend = sidan är klar
+            pltTime = navEntry.loadEventEnd - navEntry.startTime;
+            console.log(`Page Load Time: ${(pltTime.toFixed(2))} ms`);
+    });
+
+    observer.observe({ type: "navigation", buffered: true });
+    //Observer för First Contentful Paint
+    const paintObserver = new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+            if (entry.name === 'first-contentful-paint') {
+                fcpTime = entry.startTime;
+                console.log(`FCP: ${fcpTime.toFixed(2)} ms`);
+            }
+        }
+    });
+    paintObserver.observe({ type: 'paint', buffered: true });
+
+  //Observer för långa tasks
+  const longTaskObserver = new PerformanceObserver((list) => {
+    for (const entry of list.getEntries()) {
+      const endTime = entry.startTime + entry.duration;
+      lastLongTaskEnd = endTime;
+      console.log(`Long task ended at: ${endTime.toFixed(2)} ms`);
+    }
+  });
+  longTaskObserver.observe({ type: 'longtask', buffered: true });
+
+  // --- TTI-check efter 5 sekunder utan nya longtasks ---
+    function TTIChecker() {
+        const checkInterval = setInterval(() => {
+            const now = performance.now(); // starta timer
+
+            const lastRelevantTime = lastLongTaskEnd || fcpTime; //om longtask finns använd den annars fcp
+
+            if (now - lastRelevantTime > 5000) {
+                clearInterval(checkInterval);
+
+                if(fcpTime == null){
+
+                    location.reload();
+                }
+
+                const tti = lastRelevantTime - fcpTime;
+                console.log(`TTI: ${tti.toFixed(2)} ms`);
+
+                resultat.push({
+                    fcp: fcpTime.toFixed(2),
+                    tti: tti.toFixed(2),
+                    plt: pltTime.toFixed(2),
+                });
+                localStorage.setItem("ttiTester", JSON.stringify(resultat));
+
+                if (resultat.length >= TESTS) {
+                    console.table(resultat);
+                    downloadCSV(resultat);
+                    alert("Färdig med alla tester!");
+                    localStorage.removeItem("ttiTester");
+                } else {
+                    if(coldLoad){
+                        console.log("Rensar cache och laddar om (Cold Load)...");
+                        caches.keys().then((names) => {
+                        names.forEach((name) => caches.delete(name));
+                        }).then(() => {
+                            location.reload(); // Force reload
+                    });
+                    }else{
+                        location.reload(); // refresh
+                    }
+                }
+            }
+        }, 2000); // körs varjhe sekund
+    }
+
+    // Starta TTI-check när sidan laddats klart
+    if (document.readyState === 'complete') {
+        TTIChecker();
+    } else {
+        window.addEventListener('load', TTIChecker);
+    }
+
+      function downloadCSV(data) {
+          const header = "FCP ,TTI ,plt\n";
+          const rows = data.map(row => `${row.fcp},${row.tti},${row.plt}`).join("\n");
+          const csv = header + rows;
+
+          const blob = new Blob([csv], { type: "text/csv" });
+          const url = URL.createObjectURL(blob);
+
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = "Reacttest.csv";
+          link.click();
+
+          URL.revokeObjectURL(url);
+  }
+
+})();
