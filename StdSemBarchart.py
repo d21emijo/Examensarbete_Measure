@@ -6,7 +6,7 @@ import numpy as np
 from scipy import stats
 
 # vad mäta
-error_mode ="sem" #ci = confidence , sem = standard error , std = standardavikelse
+error_mode ="std" #ci = confidence , sem = standard error , std = standardavikelse
 measure_mode = "plt" # "plt"/"TTI "
 measure_label = {
     "plt": "Page Load Time",
@@ -27,18 +27,29 @@ def mean_confidence_interval(data, confidence=0.95):
 
 # scenarios
 scenarios = [
+ # pilot
     ("WarmLoad, All Cached",
-     pd.read_csv("CSVfiler/ReactWarmLoad_3x50_0Cach.csv"),
-     pd.read_csv("CSVfiler/VueWarmLoad_3x50_0Cache.csv")),
-    ("WarmLoad, 1 picture Cached",
-     pd.read_csv("CSVfiler/ReactWarmLoad_3x50_1cache.csv"),
-     pd.read_csv("CSVfiler/VueWarmLoad_3x50_1Cache.csv")),
+     pd.read_csv("CSVfiler/pilotcsv/react_pilot_warm.csv"),
+     pd.read_csv("CSVfiler/pilotcsv/Vue_pilot_warm.csv")),
+
     ("Offline Mode, All Cached",
-     pd.read_csv("CSVfiler/ReactOffline_3x50_0cache.csv"),
-     pd.read_csv("CSVfiler/VueOffline_3x50_0Cache.csv")),
+     pd.read_csv("CSVfiler/pilotcsv/react_pilot_offline.csv"),
+     pd.read_csv("CSVfiler/pilotcsv/Vue_pilot_offline.csv")),
+
     ("ColdLoad, No Cache",
-     pd.read_csv("CSVfiler/ReactColdLoad_3x50.csv"),
-     pd.read_csv("CSVfiler/VueColdLoad_3x50.csv"))
+     pd.read_csv("CSVfiler/pilotcsv/react_pilot_cold.csv"),
+     pd.read_csv("CSVfiler/pilotcsv/Vue_pilot_cold.csv")),
+
+#        ("WarmLoad, All Cached",
+#         pd.read_csv("CSVfiler/React_Warm_load_0.csv"),
+#         pd.read_csv("CSVfiler/Vue_warm_load.csv")),
+
+#        ("Offline Mode, All Cached",
+#         pd.read_csv("CSVfiler/React_Offline_load_0cache.csv"),
+#         pd.read_csv("CSVfiler/Vue_offline_load.csv")),
+#        ("ColdLoad, No Cache",
+#         pd.read_csv("CSVfiler/React_cold_load.csv"),
+#         pd.read_csv("CSVfiler/Vue_cold_load.csv")),
 
 ]
 
@@ -74,18 +85,19 @@ bars1 = ax.bar(x - width/2, means_react, width, yerr=errors_react, label=f'React
 bars2 = ax.bar(x + width/2, means_vue, width, yerr=errors_vue, label=f'Vue {measure_mode}', capsize=5, color='#42b883', alpha=0.8)
 
 # Layout
+
 ax.set_ylabel(f"{measure_label.get(measure_mode)} i ms")
-ax.set_title(f'Genomsnittlig {measure_mode} för olika scenarios (React vs Vue) med \n {error_labels.get(error_mode)}')
+ax.set_title(f' Pilot Genomsnittlig {measure_mode} för olika scenarios (React vs Vue) med \n {error_labels.get(error_mode)}')
 ax.set_xticks(x)
 ax.set_xticklabels(labels, rotation=15)
 ax.legend()
 ax.grid(True, axis='y', linestyle='--', alpha=0.5)
-
+ax.set_ylim([0,2000])
 plt.tight_layout()
-plt.savefig(f"{"bilder/"}fffffff {error_labels.get(error_mode)}_React_vs_Vue_{measure_mode}.png")
+plt.savefig(f"{"bilder/"} pilot_{error_labels.get(error_mode)}_React_vs_Vue_{measure_mode}.png")
 
-for label, mean,std in zip(labels, means_react ,errors_react):
-    print(f"{label}: \nmean {mean:.2f} ms \n{error_mode} : {std:.2f}")
+for label, mean,std in zip(labels, means_vue ,errors_vue):
+    print(f"{label}: \nmean:\n{mean:.2f}  \n{error_mode} : \n{std:.2f}")
 
 
 
